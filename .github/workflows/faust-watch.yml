@@ -1,0 +1,95 @@
+name: Faust ticket watch
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every ~10 min (GitHub may delay a few minutes)
+    - cron: '0 3 * * 1'      # weekly keepalive (prevents 60-day auto-disable)
+  workflow_dispatch: {}      # allows manual "Run workflow" button
+
+permissions:
+  contents: write
+
+concurrency:
+  group: faust-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check ticket availability
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          set -u
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+
+          DATES=("2 octombrie" "3 octombrie" "30 octombrie" "31 octombrie" "6 noiembrie" "7 noiembrie")
+          URLS=(
+            "https://www.entertix.ro/bilete/40019/faust-2-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+            "https://www.entertix.ro/bilete/40020/faust-3-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+            "https://www.entertix.ro/bilete/40021/faust-30-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+            "https://www.entertix.ro/bilete/40022/faust-31-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+            "https://www.entertix.ro/bilete/40023/faust-6-noiembrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+            "https://www.entertix.ro/bilete/40024/faust-7-noiembrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
+          )
+
+          touch state.txt
+          : > newstate.txt
+
+          for i in "${!URLS[@]}"; do
+            url="${URLS[$i]}"
+            label="${DATES[$i]}"
+            id=$(sed -E 's|.*/bilete/([0-9]+)/.*|\1|' <<<"$url")
+
+            json=$(curl -sS --max-time 25 -A "$UA" "${url}?do=getmapdata" || true)
+
+            if [[ -z "$json" ]] || ! grep -q '"legend"' <<<"$json"; then
+              status="INCONCLUSIVE"
+            elif grep -qE '"price":"?[1-9]' <<<"$json"; then
+              status="AVAILABLE"
+            else
+              status="SOLDOUT"
+            fi
+
+            echo "$id $status ($label)"
+            echo "$id:$status" >> newstate.txt
+            prev=$(grep "^$id:" state.txt | cut -d: -f2 || true)
+
+            # Notify only on transition into AVAILABLE (no repeat spam every 10 min)
+            if [[ "$status" == "AVAILABLE" && "$prev" != "AVAILABLE" ]]; then
+              curl -sS --max-time 15 \
+                -H "Title: FAUST TICKETS AVAILABLE" \
+                -H "Priority: urgent" \
+                -H "Tags: tickets,tada" \
+                -H "Click: $url" \
+                -d "FAUST $label 2026 (Sibiu) — seats on sale, buy NOW. Tap to open." \
+                "https://ntfy.sh/$NTFY_TOPIC" >/dev/null || true
+            fi
+
+            # One-time heads-up if a check breaks (site changed / blocked)
+            if [[ "$status" == "INCONCLUSIVE" && "$prev" != "INCONCLUSIVE" && -n "$prev" ]]; then
+              curl -sS --max-time 15 \
+                -H "Title: Faust watch: check broken?" \
+                -H "Priority: default" \
+                -d "Could not verify FAUST $label — page structure may have changed." \
+                "https://ntfy.sh/$NTFY_TOPIC" >/dev/null || true
+            fi
+          done
+
+          mv newstate.txt state.txt
+
+      - name: Persist state / keepalive
+        run: |
+          git config user.name "faust-watch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "state change $(date -u '+%Y-%m-%d %H:%M')"
+            git push
+          elif [[ "${{ github.event.schedule }}" == "0 3 * * 1" ]]; then
+            git commit --allow-empty -m "keepalive"
+            git push
+          fi
