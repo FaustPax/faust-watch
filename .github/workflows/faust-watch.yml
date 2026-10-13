@@ -28,8 +28,6 @@ jobs:
 
           DATES=("2 octombrie" "3 octombrie" "30 octombrie" "31 octombrie" "6 noiembrie" "7 noiembrie")
           URLS=(
-            "https://www.entertix.ro/bilete/40019/faust-2-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
-            "https://www.entertix.ro/bilete/40020/faust-3-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
             "https://www.entertix.ro/bilete/40021/faust-30-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
             "https://www.entertix.ro/bilete/40022/faust-31-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
             "https://www.entertix.ro/bilete/40023/faust-6-noiembrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
