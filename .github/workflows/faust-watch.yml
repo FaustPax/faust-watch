@@ -26,7 +26,7 @@ jobs:
           set -u
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
-          DATES=("2 octombrie" "3 octombrie" "30 octombrie" "31 octombrie" "6 noiembrie" "7 noiembrie")
+          DATES=("30 octombrie" "31 octombrie" "6 noiembrie" "7 noiembrie")
           URLS=(
             "https://www.entertix.ro/bilete/40021/faust-30-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
             "https://www.entertix.ro/bilete/40022/faust-31-octombrie-2026-fabrica-de-cultura-sala-faust-sibiu.html"
